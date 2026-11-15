@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Service (Debug)",
+      "type": "shell",
+      "command": "dotnet build src/GameBarCpuProfile.Service/GameBarCpuProfile.Service.csproj -c Debug",
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Publish Service (win-x64)",
+      "type": "shell",
+      "command": "dotnet publish src/GameBarCpuProfile.Service/GameBarCpuProfile.Service.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build Installer",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-installer.ps1",
+      "problemMatcher": []
+    }
+  ]
+}
