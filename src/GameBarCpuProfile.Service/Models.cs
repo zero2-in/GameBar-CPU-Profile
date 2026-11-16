@@ -54,7 +54,8 @@ public sealed class GameEntry
 {
     public string Path { get; set; } = "";
     public string Arch { get; set; } = "";
-    public long Size { get; set; }
+    // Older manifest.json files may contain "Size"; System.Text.Json ignores
+    // that unknown field, preserving existing GUIDs on upgrade.
     public string AppGuid { get; set; } = System.Guid.NewGuid().ToString("B").ToUpperInvariant();
     public string ExeGuid { get; set; } = System.Guid.NewGuid().ToString("B").ToUpperInvariant();
     public List<string> OwnerSids { get; set; } = new();

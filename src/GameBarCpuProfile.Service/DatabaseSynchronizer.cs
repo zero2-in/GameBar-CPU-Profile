@@ -86,22 +86,21 @@ public sealed class DatabaseSynchronizer
             foreach (var path in paths)
             {
                 if (excluded.Contains(path) || !File.Exists(path)) continue;
-                if (!PeReader.TryRead(path, out var arch, out var length)) continue;
+                if (!PeReader.TryRead(path, out var arch)) continue;
 
                 if (!byPath.TryGetValue(path, out var entry))
                 {
-                    entry = new GameEntry { Path = path, Arch = arch, Size = length };
+                    entry = new GameEntry { Path = path, Arch = arch };
                     state.Entries.Add(entry);
                     byPath[path] = entry;
                     changed = true;
                     Log.Write($"ADD [{arch}] {path}");
                 }
-                else if (entry.Arch != arch || entry.Size != length)
+                else if (entry.Arch != arch)
                 {
                     entry.Arch = arch;
-                    entry.Size = length;
                     changed = true;
-                    Log.Write("EXE CHANGED " + path);
+                    Log.Write("EXE ARCH CHANGED " + path);
                 }
                 if (!entry.OwnerSids.Contains(sid, StringComparer.OrdinalIgnoreCase))
                 {
@@ -123,7 +122,10 @@ public sealed class DatabaseSynchronizer
     {
         var db = arch == "x64" ? state.X64 : state.X86;
         var all = state.Entries.Where(e => e.Arch == arch).OrderBy(e => e.Path, StringComparer.OrdinalIgnoreCase).ToList();
-        var conflicting = all.GroupBy(e => Path.GetFileName(e.Path).ToLowerInvariant() + ":" + e.Size)
+        // Without SIZE, different paths with the same EXE filename cannot be
+        // reliably distinguished by SDB matching. Exclude ALL colliding entries
+        // rather than silently applying a shim to the wrong executable.
+        var conflicting = all.GroupBy(e => Path.GetFileName(e.Path), StringComparer.OrdinalIgnoreCase)
                              .Where(g => g.Count() > 1)
                              .SelectMany(g => g).Select(e => e.Path)
                              .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -222,15 +224,14 @@ public sealed class DatabaseSynchronizer
 
 public static class PeReader
 {
-    public static bool TryRead(string path, out string architecture, out long length)
+    public static bool TryRead(string path, out string architecture)
     {
         architecture = "";
-        length = 0;
         try
         {
             using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using var reader = new BinaryReader(stream);
-            length = stream.Length;
+            long length = stream.Length;
             if (reader.ReadUInt16() != 0x5A4D) return false;
             stream.Position = 0x3C;
             long offset = reader.ReadUInt32();
@@ -256,7 +257,9 @@ public static class SdbXml
         {
             string file = Path.GetFileName(game.Path);
             b.AppendLine($"  <APP NAME=\"{Escape(Path.GetFileNameWithoutExtension(file))}\" ID=\"{Escape(game.AppGuid)}\">");
-            b.AppendLine($"    <EXE NAME=\"{Escape(file)}\" SIZE=\"{game.Size}\" ID=\"{Escape(game.ExeGuid)}\" RUNTIME_PLATFORM=\"{(arch == "x64" ? "AMD64" : "X86_ANY")}\">");
+            // Deliberately omit SIZE: game updates can change the binary length.
+            // Preserve the per-entry GUID and architecture, and match by EXE name.
+            b.AppendLine($"    <EXE NAME=\"{Escape(file)}\" ID=\"{Escape(game.ExeGuid)}\" RUNTIME_PLATFORM=\"{(arch == "x64" ? "AMD64" : "X86_ANY")}\">");
             b.AppendLine($"      <SHIM NAME=\"ProcessorCountLie\" COMMAND_LINE=\"{count}\" />");
             b.AppendLine("    </EXE>");
             b.AppendLine("  </APP>");
