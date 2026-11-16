@@ -10,9 +10,20 @@ public sealed class DatabaseSynchronizer
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly HashSet<string> _failureHashes = new(StringComparer.Ordinal);
 
-    public async Task SyncAsync(CancellationToken cancellationToken)
+    // A named Mutex is owned by an OS thread, NOT by an async Task.
+    // Never await between WaitOne() and ReleaseMutex(): after an await,
+    // execution may resume on a different thread and ReleaseMutex throws.
+    // Execute the entire mutex-protected operation on ONE thread-pool thread.
+    // The asynchronous I/O operations may complete on other threads, but this
+    // owning thread synchronously waits for them and releases its own mutex.
+    public Task SyncAsync(CancellationToken cancellationToken) =>
+        Task.Run(() => SyncOnSingleThread(cancellationToken), cancellationToken);
+
+    private void SyncOnSingleThread(CancellationToken cancellationToken)
     {
-        // Service and developer's --sync-once invocation must not write together.
+        cancellationToken.ThrowIfCancellationRequested();
+        // Preserve the original global mutex name to serialize with other
+        // instances of the service and --sync-once command.
         using var gate = new Mutex(false, @"Global\GameBarCpuProfileWriter");
         bool acquired;
         try { acquired = gate.WaitOne(TimeSpan.FromSeconds(10)); }
@@ -20,11 +31,15 @@ public sealed class DatabaseSynchronizer
         if (!acquired) throw new TimeoutException("Another SDB synchronization is running");
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var manifest = Manifest.Load();
             bool changed = Reconcile(manifest, GameBarRegistry.ScanLoadedUsers(), _settings.PruneRemoved);
             if (changed) manifest.Save();
-            await SyncArchAsync("x64", manifest, cancellationToken);
-            await SyncArchAsync("x86", manifest, cancellationToken);
+
+            // These waits do not switch THIS thread: the mutex owner remains
+            // blocked here until each asynchronous update has completed.
+            SyncArchAsync("x64", manifest, cancellationToken).GetAwaiter().GetResult();
+            SyncArchAsync("x86", manifest, cancellationToken).GetAwaiter().GetResult();
         }
         finally { gate.ReleaseMutex(); }
     }
