@@ -44,7 +44,7 @@ Ctrl+C로 종료합니다. 실제 게임 프로세스는 폴링하지 않습니�
 성공 시 생성 파일:
 
 - `publish/GameBarCpuProfile.Service.exe` — **자체 포함 단일 파일 EXE**
-- `installer/Output/GameBarCpuProfile-Setup-0.1.0-x64.exe` — 설치 관리자
+- `installer/Output/GameBarCpuProfile-Setup-0.1.1-x64.exe` — 설치 관리자
 
 사용자는 설치 프로그램을 관리자 권한으로 실행합니다. 설치 관리자가
 `GameBarCpuProfile` 서비스를 자동 시작(지연 시작)으로 등록합니다.

@@ -1,3 +1,16 @@
+# v0.1.1 — Mutex synchronization bug fix
+
+This maintenance release fixes `System.ApplicationException` in `Mutex.ReleaseMutex()` during Game Bar synchronization.
+
+- **Fixed:** The synchronization worker no longer acquires a named `Mutex` on one thread and releases it after asynchronous continuations may have changed the executing thread.
+- **Unchanged:** Xbox Game Bar event monitoring, ProcessorCountLie settings, x64/x86 SDBs, SDB database GUIDs, manifest location and automatic pruning.
+- **Upgrade:** Run the new installer over the existing installation (stop and replace service). The existing managed SDBs and configuration are retained.
+- **Verification:** Register and unregister a test game, then check `C:\ProgramData\GameBarCpuProfile\service.log` for `Watcher error` or `ReleaseMutex` errors.
+
+The fix has been reviewed at source level but must be built and validated on Windows.
+
+---
+
 # v0.1.0 — Initial Release
 
 GameBar CPU Profile automatically applies per-game **ProcessorCountLie** compatibility fixes to games registered in Xbox Game Bar.
