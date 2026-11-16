@@ -117,7 +117,8 @@ Use **Windows Settings → Apps → Installed apps → GameBar CPU Profile → U
 - **Not all games use the CPU detection APIs covered by `ProcessorCountLie`.** Thread counts and game performance may remain unchanged.
 - The fix does not spoof every CPU-topology property (physical core count, caches, CPUID, etc.) or pin the game to the V-Cache CCD.
 - **Game compatibility and anti-cheat:** Do not automatically apply compatibility shims to games whose anti-cheat policies prohibit them; use an exclusion or do not register such titles.
-- The SDB is registered **system-wide**. File matching is based on the executable name and size, so collisions with another executable are possible.
+- The SDB is registered **system-wide**. Matching uses the executable **filename without a file-size condition**, so game updates do not invalidate the fix merely by changing file size. Unrelated EXEs with the same name may also match. When two registered games of the same architecture share an EXE filename, both are excluded from that architecture's SDB and logged as `AMBIGUOUS EXE`.
+- Some games may already have `ProcessorCountLie` fixes in separate AMD/Windows compatibility databases. If multiple databases target the same EXE, the resulting effective value must be verified rather than assuming a precedence order; consider `--exclude`.
 - An active game needs a **restart** to use a newly installed or removed compatibility fix.
 - Game Bar's registry layout and undocumented ADK compilation behavior may change with Windows/ADK updates.
 
