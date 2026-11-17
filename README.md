@@ -2,12 +2,12 @@
 
 **Per-game CPU count profiles for Windows, automatically managed through Xbox Game Bar.**
 
-GameBar CPU Profile is a lightweight Windows service that applies the Windows **`ProcessorCountLie`** application compatibility fix to games you mark in Xbox Game Bar. It helps compatible games **detect a user-selected logical processor count** without globally disabling CPU cores or rebooting.
+GameBar CPU Profile is a lightweight Windows service that applies a configurable Windows **`ProcessorCountLie` / `ProcessorCountLie2`** application compatibility fix to games you mark in Xbox Game Bar. It helps compatible games **detect a user-selected logical processor count** without globally disabling CPU cores or rebooting.
 
 Built with dual-CCD Ryzen X3D processors in mind, but not limited to AMD hardware.
 
 > [!IMPORTANT]
-> This is a **CPU-count compatibility fix, not CPU virtualization**. It does not change the host CPU topology, force threads onto a particular CCD, or guarantee higher FPS. Effects depend on how each game detects CPUs and manages its threads.
+> This is a **CPU-count compatibility fix, not CPU virtualization**. It does not change the host CPU topology or guarantee higher FPS. The optional `ProcessorCountLie2` mode may also restrict processor affinity; it is not a CCD-aware selector. Effects depend on how each game detects CPUs and manages its threads.
 
 ## How is it different from CPU affinity or CPU Sets?
 
@@ -16,7 +16,7 @@ Built with dual-CCD Ryzen X3D processors in mind, but not limited to AMD hardwar
 | Primary effect | Limits or guides *where* threads run | Changes the CPU count *reported through supported compatibility-shimmed API calls* |
 | Can influence engine worker-thread initialization? | Depends on the engine | Yes, when the engine uses covered processor-info APIs |
 | Physically disables cores? | No | No |
-| Changes CPU affinity? | Affinity does; CPU Sets uses a separate API | **No** (`ProcessorCountLie`, not `ProcessorCountLie2`) |
+| Changes CPU affinity? | Affinity does; CPU Sets uses a separate API | **Default mode: no affinity restriction observed.** Optional `ProcessorCountLie2`: may restrict affinity; test on your CPU. |
 | Requires a reboot to change profiles? | No | No; restart the affected game |
 
 On a Ryzen 9 7950X3D, for example, you can keep both CCDs enabled while asking a compatible game to detect **16 logical processors** instead of 32. The host Windows installation and other applications retain access to the full CPU.
@@ -27,7 +27,7 @@ On a Ryzen 9 7950X3D, for example, you can keep both CCDs enabled while asking a
 - **Event-driven Windows service:** Waits for registry-change notifications; does not poll running games, FPS, or CPU utilization.
 - **One database per architecture:** Maintains a combined `x64.sdb` and `x86.sdb` instead of a database for every game.
 - **Automatic updates and removal:** Rebuilds and installs the affected database when registrations change; removes obsolete fixes when a game is unregistered.
-- **Configurable CPU count:** Defaults to `ProcessorCountLie=16`.
+- **Configurable global Shim mode and CPU count:** Defaults to `ProcessorCountLie=16`; optionally selects `ProcessorCountLie2` for all registered games.
 - **Per-game exclusions:** Exclude games that are incompatible or should keep their default CPU detection.
 
 ## Requirements
@@ -86,6 +86,7 @@ Default settings:
 ```json
 {
   "ProcessorCount": 16,
+  "ShimMode": "ProcessorCountLie",
   "PruneRemoved": true,
   "DebounceMilliseconds": 450,
   "DatabaseName": "GameBar CPU Profile",
@@ -94,6 +95,10 @@ Default settings:
 ```
 
 Edit `settings.json` using administrator privileges and restart **GameBarCpuProfile** for changes to take effect. `ProcessorCount` is a **logical processor count**, not a physical core count or CCD selector.
+
+Set `"ShimMode": "ProcessorCountLie2"` to apply **ProcessorCountLie2 to every managed game** (both x64 and x86). Switch it back to `"ProcessorCountLie"` to restore the default mode. Existing `settings.json` files without `ShimMode` automatically use the default; add the property manually if upgrading. The service rebuilds and reinstalls managed SDBs on startup when this value changes, using the **existing database GUIDs**. Restart affected games after the service finishes synchronization. **This is a global mode, not a per-game selector.**
+
+**Caution:** In testing, `ProcessorCountLie2` also changed process CPU affinity. That can prevent work on other logical processors even when a game is minimized or running in the background. Which processor IDs map to each CCD varies by system; it does not automatically choose the V-Cache CCD and may reduce performance in some games. Use `--exclude` for exceptions, and review the service log before concluding the new Shim was installed successfully.
 
 **Exclude or re-include a game** using an elevated terminal (replace the example path):
 
@@ -115,7 +120,7 @@ Use **Windows Settings → Apps → Installed apps → GameBar CPU Profile → U
 ## Limitations and safety
 
 - **Not all games use the CPU detection APIs covered by `ProcessorCountLie`.** Thread counts and game performance may remain unchanged.
-- The fix does not spoof every CPU-topology property (physical core count, caches, CPUID, etc.) or pin the game to the V-Cache CCD.
+- Neither mode spoofs every CPU-topology property (physical core count, caches, CPUID, etc.). Optional `ProcessorCountLie2` can restrict affinity in some environments, but **does not automatically identify the V-Cache CCD**.
 - **Game compatibility and anti-cheat:** Do not automatically apply compatibility shims to games whose anti-cheat policies prohibit them; use an exclusion or do not register such titles.
 - The SDB is registered **system-wide**. Matching uses the executable **filename without a file-size condition**, so game updates do not invalidate the fix merely by changing file size. Unrelated EXEs with the same name may also match. When two registered games of the same architecture share an EXE filename, both are excluded from that architecture's SDB and logged as `AMBIGUOUS EXE`.
 - Some games may already have `ProcessorCountLie` fixes in separate AMD/Windows compatibility databases. If multiple databases target the same EXE, the resulting effective value must be verified rather than assuming a precedence order; consider `--exclude`.
