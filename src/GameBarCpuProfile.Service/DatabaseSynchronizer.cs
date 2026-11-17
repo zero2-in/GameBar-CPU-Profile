@@ -147,7 +147,7 @@ public sealed class DatabaseSynchronizer
             return;
         }
 
-        string xml = SdbXml.Build(arch, entries, db.Guid, _settings.ProcessorCount, _settings.DatabaseName);
+        string xml = SdbXml.Build(arch, entries, db.Guid, _settings.ProcessorCount, _settings.DatabaseName, _settings.ShimMode);
         string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(xml)));
         if (db.Installed && string.Equals(db.InstalledHash, hash, StringComparison.Ordinal)) return;
         if (_failureHashes.Contains(arch + hash)) return;
@@ -182,7 +182,7 @@ public sealed class DatabaseSynchronizer
             db.InstalledHash = hash;
             state.Save();
             _failureHashes.Remove(arch + hash);
-            Log.Write($"INSTALLED {arch} SDB: {entries.Count} games, ProcessorCountLie={_settings.ProcessorCount}");
+            Log.Write($"INSTALLED {arch} SDB: {entries.Count} games, {_settings.ShimMode}={_settings.ProcessorCount}");
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -247,7 +247,7 @@ public static class PeReader
 
 public static class SdbXml
 {
-    public static string Build(string arch, IEnumerable<GameEntry> entries, string dbGuid, int count, string brand)
+    public static string Build(string arch, IEnumerable<GameEntry> entries, string dbGuid, int count, string brand, string shimMode)
     {
         var b = new StringBuilder();
         var display = $"{brand} ({(arch == "x64" ? "64-bit Games" : "32-bit Games")})";
@@ -260,7 +260,7 @@ public static class SdbXml
             // Deliberately omit SIZE: game updates can change the binary length.
             // Preserve the per-entry GUID and architecture, and match by EXE name.
             b.AppendLine($"    <EXE NAME=\"{Escape(file)}\" ID=\"{Escape(game.ExeGuid)}\" RUNTIME_PLATFORM=\"{(arch == "x64" ? "AMD64" : "X86_ANY")}\">");
-            b.AppendLine($"      <SHIM NAME=\"ProcessorCountLie\" COMMAND_LINE=\"{count}\" />");
+            b.AppendLine($"      <SHIM NAME=\"{Escape(shimMode)}\" COMMAND_LINE=\"{count}\" />");
             b.AppendLine("    </EXE>");
             b.AppendLine("  </APP>");
         }

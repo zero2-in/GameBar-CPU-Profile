@@ -14,6 +14,9 @@ public static class DataPaths
 public sealed class AppSettings
 {
     public int ProcessorCount { get; set; } = 16;
+    // Global mode for all managed entries. Older settings.json files without
+    // this property automatically retain the original ProcessorCountLie mode.
+    public string ShimMode { get; set; } = "ProcessorCountLie";
     public bool PruneRemoved { get; set; } = true;
     public int DebounceMilliseconds { get; set; } = 450;
     public string DatabaseName { get; set; } = "GameBar CPU Profile";
@@ -31,6 +34,14 @@ public sealed class AppSettings
         var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(DataPaths.Settings), JsonOptions.Default)
             ?? throw new InvalidDataException("settings.json is empty");
         if (settings.ProcessorCount is < 1 or > 32) throw new InvalidDataException("ProcessorCount must be 1..32");
+        // Whitelist the shim names: this value is inserted into generated XML.
+        // Normalize casing for stable XML hashes across equivalent settings.
+        settings.ShimMode = settings.ShimMode?.Trim() switch
+        {
+            string mode when mode.Equals("ProcessorCountLie", StringComparison.OrdinalIgnoreCase) => "ProcessorCountLie",
+            string mode when mode.Equals("ProcessorCountLie2", StringComparison.OrdinalIgnoreCase) => "ProcessorCountLie2",
+            _ => throw new InvalidDataException("ShimMode must be ProcessorCountLie or ProcessorCountLie2")
+        };
         if (settings.DebounceMilliseconds is < 100 or > 10000) throw new InvalidDataException("DebounceMilliseconds must be 100..10000");
         if (string.IsNullOrWhiteSpace(settings.DatabaseName)) throw new InvalidDataException("DatabaseName cannot be empty");
         return settings;

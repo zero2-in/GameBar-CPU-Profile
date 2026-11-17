@@ -1,7 +1,7 @@
 # GameBar CPU Profile — 개발자 가이드
 
 Xbox Game Bar에 등록된 EXE를 감지하여, Windows Application Compatibility의
-`ProcessorCountLie=16` 설정을 아키텍처별 통합 `.sdb` 2개에 자동 반영하는 서비스입니다.
+`ProcessorCountLie=16`(기본) 또는 `ProcessorCountLie2=16`(선택) 설정을 아키텍처별 통합 `.sdb` 2개에 자동 반영하는 서비스입니다.
 
 **참고:** 초기 소스는 Windows 실기기에서 컴파일·설치 검증을 거치기 전 작성되었습니다.
 릴리스 상태는 GitHub Release 및 실제 테스트 결과를 기준으로 확인하세요.
@@ -44,7 +44,7 @@ Ctrl+C로 종료합니다. 실제 게임 프로세스는 폴링하지 않습니�
 성공 시 생성 파일:
 
 - `publish/GameBarCpuProfile.Service.exe` — **자체 포함 단일 파일 EXE**
-- `installer/Output/GameBarCpuProfile-Setup-0.1.2-x64.exe` — 설치 관리자
+- `installer/Output/GameBarCpuProfile-Setup-0.1.3-x64.exe` — 설치 관리자
 
 사용자는 설치 프로그램을 관리자 권한으로 실행합니다. 설치 관리자가
 `GameBarCpuProfile` 서비스를 자동 시작(지연 시작)으로 등록합니다.
@@ -71,8 +71,8 @@ Ctrl+C로 종료합니다. 실제 게임 프로세스는 폴링하지 않습니�
 5. 컴파일이 성공한 경우에만 **Windows의 `sdbinst.exe`**로 설치합니다.
 6. 다시 레지스트리 변경 이벤트 대기 상태로 돌아갑니다.
 
-일반 게임 실행 중 지속적인 CPU 감시, FPS 계측, GPU 접근, Affinity 설정이 없습니다.
-`ProcessorCountLie2`는 사용하지 않습니다. **별도 게임 실행 중인 프로세스에는 재시작 후 적용**됩니다.
+서비스 자체는 일반 게임 실행 중 지속적인 CPU 감시, FPS 계측, GPU 접근, Affinity 설정을 하지 않습니다.
+기본값은 `ProcessorCountLie`이며, `settings.json`의 `ShimMode`로 `ProcessorCountLie2`를 전역 선택할 수 있습니다. 두 모드 모두 **이미 실행 중인 게임에는 재시작 후 적용**됩니다. `ProcessorCountLie2`는 Shim 동작으로 Affinity까지 제한할 수 있으며, 서비스가 직접 프로세스 Affinity를 설정하는 기능은 아닙니다.
 
 - `x64.sdb`: 64비트 게임들을 하나의 데이터베이스에 저장
 - `x86.sdb`: 32비트 게임들을 하나의 데이터베이스에 저장
@@ -100,6 +100,7 @@ C:\ProgramData\GameBarCpuProfile\
 ```json
 {
   "ProcessorCount": 16,
+  "ShimMode": "ProcessorCountLie",
   "PruneRemoved": true,
   "DebounceMilliseconds": 450,
   "DatabaseName": "GameBar CPU Profile",
@@ -107,7 +108,7 @@ C:\ProgramData\GameBarCpuProfile\
 }
 ```
 
-설정 파일을 변경하면 **서비스를 재시작**하세요. 실시간 설정 다시 읽기는 아직 지원하지 않습니다.
+설정 파일을 변경하면 **서비스를 재시작**하세요. 실시간 설정 다시 읽기는 아직 지원하지 않습니다. 기존 `settings.json`에 `ShimMode`가 없어도 기본 `ProcessorCountLie`로 로드되며, 이름은 `ProcessorCountLie` 또는 `ProcessorCountLie2`만 허용합니다. 모드 변경 시 XML SHA-256 해시가 달라지므로 기존 SDB GUID를 유지한 채 새 SDB를 컴파일·설치합니다.
 
 ```powershell
 # 설치된 서비스 확인
@@ -165,7 +166,11 @@ ADK가 없으면 Game Bar 이벤트 감시는 가능하지만 **새 SDB를 컴�
 - [ ] Windows 11 x64에서 `dotnet build` 에러 없이 성공
 - [ ] `--check-tools`에서 fixApp.exe, sdbinst.exe 확인
 - [ ] 게임 1개로 x64 SDB 컴파일, 설치 및 Compatibility Administrator에서 확인
-- [ ] `ProcessorCountLie=16` 전후 게임 스레드 수 비교
+- [ ] 기본 `ProcessorCountLie=16` 전후 게임 스레드 수 비교
+- [ ] `ShimMode`를 `ProcessorCountLie2`로 변경한 뒤 x64/x86 XML의 `<SHIM NAME>`과 로그 확인
+- [ ] 다시 `ProcessorCountLie`로 변경하면 XML/SDB가 원래 모드로 갱신되는지 확인
+- [ ] 기존 `settings.json` (`ShimMode` 필드 없음)으로 업그레이드해도 기본 모드 유지
+- [ ] `ProcessorCountLie2`가 실험 시스템에서 변경한 Affinity 및 백그라운드 유지 여부 확인
 - [ ] Game Bar 게임 등록/해제 즉시 반영
 - [ ] 32비트 EXE도 x86 SDB에 반영
 - [ ] 서비스 종료/재시작 및 Windows 로그인·로그아웃 시 안정성

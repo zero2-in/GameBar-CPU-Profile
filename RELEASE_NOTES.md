@@ -1,3 +1,17 @@
+# v0.1.3 — Configurable global compatibility Shim mode
+
+- **Added:** `ShimMode` in `settings.json`: choose `ProcessorCountLie` (default, existing behavior) or `ProcessorCountLie2` for **all managed games** in both x64 and x86 databases.
+- **Preserved:** Existing settings files without `ShimMode` automatically retain the original `ProcessorCountLie` behavior. The `ProcessorCount` value still controls the Shim argument (default `16`).
+- **Changed:** Switching modes changes the generated SDB XML and its hash, causing a database rebuild on service restart. Existing SDB GUIDs and per-game registration metadata are retained.
+- **Improved:** The service log records the selected Shim and argument, and unknown Shim modes are rejected rather than silently applied.
+- **Unchanged:** v0.1.2 size-independent matching, v0.1.1 Mutex fix, event-based Game Bar monitoring, game exclusions, and automatic SDB lifecycle.
+
+**To enable:** Set `"ShimMode": "ProcessorCountLie2"` in `C:\ProgramData\GameBarCpuProfile\settings.json`, restart the `GameBarCpuProfile` service, verify the installation log, and relaunch games. Restore `"ProcessorCountLie"` to revert.
+
+**Caution:** `ProcessorCountLie2` may restrict process CPU affinity, including in the background. It is **not** guaranteed to select the V-Cache CCD, and may worsen performance in some games. This is a global setting, not a per-game choice. Validate on your hardware and exclude incompatible games. Source changes have not been compiled or runtime-tested on Windows in the packaging environment.
+
+---
+
 # v0.1.2 — File-size-independent game matching
 
 This release removes the `SIZE` matching attribute from the generated EXE entries in x64/x86 compatibility databases. Compatibility fixes now continue to match the same executable filename after game updates change its file size.

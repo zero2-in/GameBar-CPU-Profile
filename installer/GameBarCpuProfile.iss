@@ -1,5 +1,5 @@
 #define AppName "GameBar CPU Profile"
-#define AppVersion "0.1.2"
+#define AppVersion "0.1.3"
 #define ServiceExe "GameBarCpuProfile.Service.exe"
 
 [Setup]
